@@ -26,15 +26,15 @@ func main() {
 		fmt.Printf("[!] Error while downloading page: %s\n", err.Error())
 		os.Exit(1)
 	}
-	fmt.Printf("Got %d bytes of html\n", len(src))
+	fmt.Printf("[+] Got %d bytes of html\n", len(src))
 
 	links := filter(src)
-	fmt.Printf("Got %d images\n", len(links))
+	fmt.Printf("[+] Got %d images\n", len(links))
 
 	for _, s := range links {
-		fmt.Println("Download: " + s)
+		fmt.Println("[+] Download: " + s)
 
-		dl2file("http:"+s, "")
+		dl2file("http:"+s, "") // 4chan only has //i.4cdn... as uri
 	}
 }
 
