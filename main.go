@@ -1,105 +1,118 @@
 package main
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"regexp"
 	"strings"
 )
 
-var thread *string = flag.String("thread", "", "the chan thread to download")
+var flagUrl *string = flag.String("thread", "", "the chan thread to download")
+
+func exitf(msg string, args ...interface{}) {
+	if !strings.HasSuffix(msg, "\n") {
+		msg += "\n"
+	}
+	fmt.Fprintf(os.Stderr, msg, args...)
+	os.Exit(1)
+}
 
 func main() {
 	flag.Parse()
 
-	if *thread == "" {
-		fmt.Println("Please provide a chan link.")
-		os.Exit(0)
+	if *flagUrl == "" {
+		exitf("No chan link found")
 	}
+
 	// Housten, we have a thread
-	src, err := dl(*thread)
+	src, err := downloadToString(*flagUrl)
 	if err != nil {
-		fmt.Printf("[!] Error while downloading page: %s\n", err.Error())
-		os.Exit(1)
+		exitf("Error while downloading page", err)
 	}
-	fmt.Printf("[+] Got %d bytes of html\n", len(src))
 
 	links := filter(src)
-	fmt.Printf("[+] Got %d images\n", len(links))
+	fmt.Printf("Found %d images.\n", len(links))
 
-	for _, s := range links {
-		fmt.Println("[+] Download: " + s)
-
-		dl2file("http:"+s, "") // 4chan only has //i.4cdn... as uri
+	x := len(links)
+	for i, s := range links {
+		fmt.Printf("[%d/%d] %s\n", i, x, s)
+		err = downloadToDisk(s) // 4chan only has //i.4cdn... as uri
+		if err != nil {
+			fmt.Printf("Error while downloading %s: %s", s, err.Error())
+		}
 	}
 }
 
-func dl2file(url, file string) error {
-
+// download a file to disk, does overwrite existing files
+func downloadToDisk(url string) error {
 	x := strings.Split(url, "/")
-	fn := x[len(x)-1]
+	fn := x[len(x)-1] // get filename
 
 	out, err := os.Create(fn)
 	if err != nil {
-		fmt.Println("[!] Error while creating file " + file + ": " + err.Error())
 		return err
 	}
 	defer out.Close()
+	return download(out, url)
+}
 
+// download a webpage to memory
+func downloadToString(url string) (string, error) {
+	buf := bytes.NewBuffer(nil)
+	err := download(buf, url)
+	if err != nil {
+		return "", err
+	}
+	return buf.String(), nil
+}
+
+func download(dst io.Writer, url string) error {
 	resp, err := http.Get(url)
 	if err != nil {
-		fmt.Printf("[!] Error while HTTP GET for %s: %s\n", url, err.Error())
-
 		return err
 	}
 	defer resp.Body.Close()
+
+	_, err = io.Copy(dst, resp.Body)
 	if err != nil {
-		fmt.Printf("[!] Error while downloading file %s: %s\n", url, err.Error())
-		return err
-	}
-	_, err = io.Copy(out, resp.Body)
-	if err != nil {
-		fmt.Println("[!] Error while transfering file to disk: " + err.Error())
 		return err
 	}
 	return nil
 }
 
-func dl(url string) (string, error) {
-	resp, err := http.Get(url)
-	if err != nil {
-		return "", err
+func filter(src string) []string {
+	var result []string
+	// todo, support more chans
+	if strings.Contains(src, "//i.4cdn.org/") {
+		result = filter_4chan_s(src)
 	}
-	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return "", err
-	}
-	return string(body), nil
+
+	return removeDuplicates(result)
 }
 
-func filter(src string) []string {
-	// todo, support more chans
-	l := filter_4chan_s(src)
-
-	// filter out dups
-	tmp := map[string]bool{}
-	for v := range l {
-		tmp[l[v]] = true
-	}
-
-	result := []string{}
-	for k, _ := range tmp {
-		result = append(result, k)
+func filter_4chan_s(src string) []string {
+	var result []string
+	r := regexp.MustCompile("//i.4cdn.org/[a-zA-Z]{1,4}/[0-9]{1,15}.(jpg|jpeg|png|gif|webm)")
+	for _, x := range r.FindAllString(src, -1) {
+		result = append(result, "http:"+x)
 	}
 	return result
 }
 
-func filter_4chan_s(src string) []string {
-	r := regexp.MustCompile("//i.4cdn.org/[a-zA-Z]{1,4}/[0-9]{1,15}.(jpg|jpeg|png|gif|webm)")
-	return r.FindAllString(src, -1)
+func removeDuplicates(slice []string) []string {
+	var result []string
+	tmp := map[string]bool{}
+
+	for v := range slice {
+		tmp[slice[v]] = true
+	}
+
+	for k, _ := range tmp {
+		result = append(result, k)
+	}
+	return result
 }
