@@ -91,6 +91,10 @@ func filter(src string) []string {
 		result = filter_4chan_s(src)
 	}
 
+	if strings.Contains(src, "krautchan") {
+		result = filter_krautchan_s(src)
+	}
+
 	return removeDuplicates(result)
 }
 
@@ -99,6 +103,15 @@ func filter_4chan_s(src string) []string {
 	r := regexp.MustCompile("//i.4cdn.org/[a-zA-Z]{1,4}/[0-9]{1,15}.(jpg|jpeg|png|gif|webm)")
 	for _, x := range r.FindAllString(src, -1) {
 		result = append(result, "http:"+x)
+	}
+	return result
+}
+
+func filter_krautchan_s(src string) []string {
+	var result []string
+	r := regexp.MustCompile("/files/[0-9]{7,15}.(jpg|jpeg|png|gif|webm|gifv)")
+	for _, x := range r.FindAllString(src, -1) {
+		result = append(result, "http://krautchan.net"+x)
 	}
 	return result
 }
