@@ -1,3 +1,2 @@
-changet
-*.swp
-
+*
+!*.go
