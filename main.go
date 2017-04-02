@@ -10,6 +10,7 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"time"
 )
 
 var errDupe error = errors.New("dupe")
@@ -42,7 +43,8 @@ func main() {
 
 	x := len(links)
 	for i, s := range links {
-		err = downloadToDisk(s) // 4chan only has //i.4cdn... as uri
+		var t time.Duration
+		t, err = downloadToDisk(s) // 4chan only has //i.4cdn... as uri
 		if err == errDupe {
 			//fmt.Printf("[%d/%d] %s\n", i+1, x, s+" skipped")
 			continue
@@ -50,7 +52,7 @@ func main() {
 		if err != nil {
 			fmt.Printf("Error while downloading %s: %s", s, err.Error())
 		}
-		fmt.Printf("[%d/%d] %s\n", i+1, x, s)
+		fmt.Printf("[%d/%d] %s\t%.2fs\n", i+1, x, s, t.Seconds())
 	}
 }
 
@@ -62,17 +64,17 @@ func fileexists(file string) bool {
 }
 
 // download a file to disk, does overwrite existing files
-func downloadToDisk(url string) error {
+func downloadToDisk(url string) (time.Duration, error) {
 	x := strings.Split(url, "/")
 	fn := x[len(x)-1] // get filename
 
 	if fileexists(fn) {
-		return errDupe
+		return time.Now().Sub(time.Now()), errDupe
 	}
 
 	out, err := os.Create(fn)
 	if err != nil {
-		return err
+		return time.Now().Sub(time.Now()), err
 	}
 	defer out.Close()
 	return download(out, url)
@@ -81,25 +83,29 @@ func downloadToDisk(url string) error {
 // download a webpage to memory
 func downloadToString(url string) (string, error) {
 	buf := bytes.NewBuffer(nil)
-	err := download(buf, url)
+	_, err := download(buf, url)
 	if err != nil {
 		return "", err
 	}
 	return buf.String(), nil
 }
 
-func download(dst io.Writer, url string) error {
+func download(dst io.Writer, url string) (time.Duration, error) {
+	var start, end time.Time
+	start = time.Now()
 	resp, err := http.Get(url)
 	if err != nil {
-		return err
+		return end.Sub(start), err
 	}
 	defer resp.Body.Close()
 
 	_, err = io.Copy(dst, resp.Body)
 	if err != nil {
-		return err
+		return end.Sub(start), err
 	}
-	return nil
+
+	end = time.Now()
+	return end.Sub(start), nil
 }
 
 func filter(src string) []string {
