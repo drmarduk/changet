@@ -32,6 +32,8 @@ func main() {
 		exitf("No chan link found")
 	}
 
+	var total int64
+	var start time.Time = time.Now()
 	// Housten, we have a thread
 	src, err := downloadToString(*flagURL)
 	if err != nil {
@@ -43,8 +45,9 @@ func main() {
 
 	x := len(links)
 	for i, s := range links {
-		var t time.Duration
-		t, err = downloadToDisk(s) // 4chan only has //i.4cdn... as uri
+		var t float64
+		var size int64
+		t, size, err = downloadToDisk(s) // 4chan only has //i.4cdn... as uri
 		if err == errDupe {
 			//fmt.Printf("[%d/%d] %s\n", i+1, x, s+" skipped")
 			continue
@@ -52,8 +55,13 @@ func main() {
 		if err != nil {
 			fmt.Printf("Error while downloading %s: %s", s, err.Error())
 		}
-		fmt.Printf("[%d/%d] %s\t%.2fs\n", i+1, x, s, t.Seconds())
+		fmt.Printf("[%d/%d] %s\t%.2f KB (%.2f KBytes/s)\n", i+1, x, s, (float64(size) / 1000), t/1000)
+		total += size
 	}
+
+	end := time.Now()
+
+	fmt.Printf("\nDownloaded %d files. %.2f MB in %s Seconds\n", len(links), float64(total/1000/1000), end.Sub(start).String())
 }
 
 func fileexists(file string) bool {
@@ -64,17 +72,17 @@ func fileexists(file string) bool {
 }
 
 // download a file to disk, does overwrite existing files
-func downloadToDisk(url string) (time.Duration, error) {
+func downloadToDisk(url string) (float64, int64, error) {
 	x := strings.Split(url, "/")
 	fn := x[len(x)-1] // get filename
 
 	if fileexists(fn) {
-		return time.Now().Sub(time.Now()), errDupe
+		return 0.0, 0, errDupe
 	}
 
 	out, err := os.Create(fn)
 	if err != nil {
-		return time.Now().Sub(time.Now()), err
+		return 0.0, 0, err
 	}
 	defer out.Close()
 	return download(out, url)
@@ -83,29 +91,31 @@ func downloadToDisk(url string) (time.Duration, error) {
 // download a webpage to memory
 func downloadToString(url string) (string, error) {
 	buf := bytes.NewBuffer(nil)
-	_, err := download(buf, url)
+	_, _, err := download(buf, url)
 	if err != nil {
 		return "", err
 	}
 	return buf.String(), nil
 }
 
-func download(dst io.Writer, url string) (time.Duration, error) {
+func download(dst io.Writer, url string) (float64, int64, error) {
 	var start, end time.Time
 	start = time.Now()
 	resp, err := http.Get(url)
 	if err != nil {
-		return end.Sub(start), err
+		return 0.0, 0, err
 	}
 	defer resp.Body.Close()
 
-	_, err = io.Copy(dst, resp.Body)
+	var size int64
+	size, err = io.Copy(dst, resp.Body)
 	if err != nil {
-		return end.Sub(start), err
+		return 0.0, 0, err
 	}
 
 	end = time.Now()
-	return end.Sub(start), nil
+	bps := float64(size) / end.Sub(start).Seconds()
+	return bps, size, nil
 }
 
 func filter(src string) []string {
@@ -121,6 +131,10 @@ func filter(src string) []string {
 
 	if strings.Contains(src, "taychan") {
 		result = filter_taychan_b(src)
+	}
+
+	if strings.Contains(src, "7chan.org") {
+		result = filter_7chan_s(src)
 	}
 
 	return removeDuplicates(result)
@@ -150,6 +164,15 @@ func filter_taychan_b(src string) []string {
 	r := regexp.MustCompile("/b/src/[0-9]{7,15}(|-[0-9]{1,3}).(jpg|jpeg|png|gif|webm|gifv)")
 	for _, x := range r.FindAllString(src, -1) {
 		result = append(result, "http://taychan.eu"+x)
+	}
+	return result
+}
+
+func filter_7chan_s(src string) []string {
+	var result []string
+	r := regexp.MustCompile("")
+	for _, x := range r.FindAllString(src, -1) {
+		result = append(result, "http://7chan.org/"+x)
 	}
 	return result
 }
