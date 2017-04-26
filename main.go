@@ -1,12 +1,9 @@
 package main
 
 import (
-	"bytes"
 	"errors"
 	"flag"
 	"fmt"
-	"io"
-	"net/http"
 	"os"
 	"regexp"
 	"strings"
@@ -33,7 +30,7 @@ func main() {
 	}
 
 	var total int64
-	var start time.Time = time.Now()
+	start := time.Now()
 	// Housten, we have a thread
 	src, err := downloadToString(*flagURL)
 	if err != nil {
@@ -64,60 +61,6 @@ func main() {
 	fmt.Printf("\nDownloaded %d files. %.2f MB in %s Seconds\n", len(links), float64(total/1000/1000), end.Sub(start).String())
 }
 
-func fileexists(file string) bool {
-	if _, err := os.Stat(file); os.IsNotExist(err) {
-		return false
-	}
-	return true
-}
-
-// download a file to disk, does overwrite existing files
-func downloadToDisk(url string) (float64, int64, error) {
-	x := strings.Split(url, "/")
-	fn := x[len(x)-1] // get filename
-
-	if fileexists(fn) {
-		return 0.0, 0, errDupe
-	}
-
-	out, err := os.Create(fn)
-	if err != nil {
-		return 0.0, 0, err
-	}
-	defer out.Close()
-	return download(out, url)
-}
-
-// download a webpage to memory
-func downloadToString(url string) (string, error) {
-	buf := bytes.NewBuffer(nil)
-	_, _, err := download(buf, url)
-	if err != nil {
-		return "", err
-	}
-	return buf.String(), nil
-}
-
-func download(dst io.Writer, url string) (float64, int64, error) {
-	var start, end time.Time
-	start = time.Now()
-	resp, err := http.Get(url)
-	if err != nil {
-		return 0.0, 0, err
-	}
-	defer resp.Body.Close()
-
-	var size int64
-	size, err = io.Copy(dst, resp.Body)
-	if err != nil {
-		return 0.0, 0, err
-	}
-
-	end = time.Now()
-	bps := float64(size) / end.Sub(start).Seconds()
-	return bps, size, nil
-}
-
 func filter(src string) []string {
 	var result []string
 	// todo, support more chans
@@ -137,7 +80,38 @@ func filter(src string) []string {
 		result = filter_7chan_s(src)
 	}
 
+	// http://oxwugzccvk3dk6tj.onion/8teen/res/8.html
+	if strings.Contains(src, "oxwugzccvk3dk6tj.onion") {
+		result = filter_8teen_s(src)
+	}
+	// https://ccluster.com/Models/thread/15#697
+	if strings.Contains(src, "ccluster.com") {
+		result = filter_ccluster_s(src)
+	}
+
 	return removeDuplicates(result)
+}
+
+func filter_ccluster_s(src string) []string {
+	var result []string // https://ccluster.com/media/images/pedo_135.png
+	// <a " class="hyperlinkMediaFileName" href="https://ccluster.com/media/images/Models_697.jpg" target="_blank">
+	r := regexp.MustCompile("https://ccluster.com/media/(images|videos)/[a-zA-Z0-9_-]{1,100}.(jpg|jpeg|png|gif|webm)")
+	for _, x := range r.FindAllString(src, -1) {
+		result = append(result, x)
+	}
+	return result
+}
+
+func filter_8teen_s(src string) []string {
+	//http://oxwugzccvk3dk6tj.onion/8teen/res/8.html
+	//<a href="http://oxwugzccvk3dk6tj.onion/8teen/src/1466839872722-1.jpeg">1466839872722-1.jpeg</a>
+	var result []string
+	//r := regexp.MustCompile("//i.4cdn.org/[a-zA-Z]{1,4}/[0-9]{1,15}.(jpg|jpeg|png|gif|webm)")
+	r := regexp.MustCompile("http://oxwugzccvk3dk6tj.onion/[0-9a-zA-Z]{1,15}/src/[0-9-]{1,15}.(jpg|jpeg|png|gif|webm)")
+	for _, x := range r.FindAllString(src, -1) {
+		result = append(result, x)
+	}
+	return result
 }
 
 func filter_4chan_s(src string) []string {
@@ -185,7 +159,7 @@ func removeDuplicates(slice []string) []string {
 		tmp[slice[v]] = true
 	}
 
-	for k, _ := range tmp {
+	for k := range tmp {
 		result = append(result, k)
 	}
 	return result
