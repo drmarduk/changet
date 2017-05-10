@@ -16,7 +16,7 @@ func downloadOnion(dst io.Writer, url string) (float64, int64, error) {
 	var start, end time.Time
 	start = time.Now()
 
-	p, err := derp.Parse("socks5://127.0.0.1:9150")
+	p, err := derp.Parse("socks5://127.0.0.1:9050")
 	if err != nil {
 		return 0.0, 0, err
 	}
