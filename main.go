@@ -4,7 +4,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"os"
+	"log"
 	"regexp"
 	"strings"
 	"time"
@@ -12,21 +12,13 @@ import (
 
 var errDupe error = errors.New("dupe")
 
-func exitf(msg string, args ...interface{}) {
-	if !strings.HasSuffix(msg, "\n") {
-		msg += "\n"
-	}
-	fmt.Fprintf(os.Stderr, msg, args...)
-	os.Exit(1)
-}
-
 func main() {
 	flagURL := flag.String("thread", "", "the chan thread to download")
 
 	flag.Parse()
 
 	if *flagURL == "" {
-		exitf("No chan link found")
+		log.Fatalf("could not find thread url")
 	}
 
 	var total int64
@@ -34,7 +26,7 @@ func main() {
 	// Housten, we have a thread
 	src, err := downloadToString(*flagURL)
 	if err != nil {
-		exitf("Error while downloading page", err)
+		log.Fatalf("could not download thread page: %v\n", err)
 	}
 
 	links := filter(src)
@@ -50,7 +42,7 @@ func main() {
 			continue
 		}
 		if err != nil {
-			fmt.Printf("Error while downloading %s: %s", s, err.Error())
+			fmt.Printf("Error while downloading %s: %s\n", s, err.Error())
 		}
 		fmt.Printf("[%d/%d] %s\t%.2f KB (%.2f KBytes/s)\n", i+1, x, s, (float64(size) / 1000), t/1000)
 		total += size
@@ -103,11 +95,12 @@ func filter_ccluster_s(src string) []string {
 }
 
 func filter_8teen_s(src string) []string {
+	// http://oxwugzccvk3dk6tj.onion/file_store/479dc24165fdc6514102bb3dfad7b119c5349ccfa911a4c9b5f825c8bb9bd5aa.jpg
 	//http://oxwugzccvk3dk6tj.onion/8teen/res/8.html
 	//<a href="http://oxwugzccvk3dk6tj.onion/8teen/src/1466839872722-1.jpeg">1466839872722-1.jpeg</a>
 	var result []string
 	//r := regexp.MustCompile("//i.4cdn.org/[a-zA-Z]{1,4}/[0-9]{1,15}.(jpg|jpeg|png|gif|webm)")
-	r := regexp.MustCompile("http://oxwugzccvk3dk6tj.onion/[0-9a-zA-Z]{1,15}/src/[0-9-]{1,15}.(jpg|jpeg|png|gif|webm)")
+	r := regexp.MustCompile(`http://oxwugzccvk3dk6tj.onion/([0-9a-zA-Z]{1,15}/src/[0-9-]{1,15}|file_store/[a-f0-9]{64}).(jpg|jpeg|png|gif|webm|mp4)`)
 	for _, x := range r.FindAllString(src, -1) {
 		result = append(result, x)
 	}
