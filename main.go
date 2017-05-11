@@ -72,6 +72,10 @@ func filter(src string) []string {
 		result = filter_7chan_s(src)
 	}
 
+	if strings.Contains(src, "8ch.net") {
+		result = filter_8chan(src)
+	}
+
 	// http://oxwugzccvk3dk6tj.onion/8teen/res/8.html
 	if strings.Contains(src, "oxwugzccvk3dk6tj.onion") {
 		result = filter_8teen_s(src)
@@ -82,6 +86,15 @@ func filter(src string) []string {
 	}
 
 	return removeDuplicates(result)
+}
+
+func filter_8chan(src string) []string {
+	var result []string
+	r := regexp.MustCompile(`http(|s)://(media.|)8ch.net/([0-9a-zA-Z]{1,15}/src/[0-9-]{1,15}|file_store/[a-f0-9]{64}).(jpg|jpeg|png|gif|webm|mp4)`)
+	for _, x := range r.FindAllString(src, -1) {
+		result = append(result, x)
+	}
+	return result
 }
 
 func filter_ccluster_s(src string) []string {
