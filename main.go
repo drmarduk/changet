@@ -84,6 +84,10 @@ func filter(src string) []string {
 	if strings.Contains(src, "ccluster.com") {
 		result = filter_ccluster_s(src)
 	}
+	// https://mewch.net/nsfw/res/1231.html
+	if strings.Contains(src, "mewch.net") {
+		result = filter_mewch(src)
+	}
 
 	return removeDuplicates(result)
 }
@@ -153,6 +157,16 @@ func filter_7chan_s(src string) []string {
 	r := regexp.MustCompile("")
 	for _, x := range r.FindAllString(src, -1) {
 		result = append(result, "http://7chan.org/"+x)
+	}
+	return result
+}
+
+func filter_mewch(src string) []string {
+	// <a class="originalNameLink" href="/.media/b75d7beb47cb9e0d10d7403d6a561d49-imagejpeg.jpg" download="ass8.jpg">ass8.jpg</a>
+	var result []string
+	r := regexp.MustCompile("/.media/(.*)-(video|image)(jpeg|jpg|png|gif|mp4|webm).(jpeg|jpg|png|gif|mp4|webm)")
+	for _, x := range r.FindAllString(src, -1) {
+		result = append(result, "https://mewch.net"+x)
 	}
 	return result
 }
