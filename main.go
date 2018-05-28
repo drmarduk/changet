@@ -14,6 +14,7 @@ var errDupe error = errors.New("dupe")
 
 func main() {
 	flagURL := flag.String("thread", "", "the chan thread to download")
+	dry := flag.Bool("dry", false, "no download, only regex")
 	flag.Parse()
 	if *flagURL == "" {
 		log.Fatalf("could not find thread url")
@@ -34,6 +35,10 @@ func main() {
 	for i, s := range links {
 		var t float64
 		var size int64
+		if *dry {
+			fmt.Printf("[%d/%d] %s\n", i+1, x, s)
+			continue
+		}
 		t, size, err = downloadToDisk(s) // 4chan only has //i.4cdn... as uri
 		if err == errDupe {
 			//fmt.Printf("[%d/%d] %s\n", i+1, x, s+" skipped")
@@ -186,9 +191,9 @@ func filter_7chan_s(src string) []string {
 func filter_mewch(src string) []string {
 	// <a class="originalNameLink" href="/.media/b75d7beb47cb9e0d10d7403d6a561d49-imagejpeg.jpg" download="ass8.jpg">ass8.jpg</a>
 	var result []string
-	r := regexp.MustCompile("/.media/(.*)-(video|image)(jpeg|jpg|png|gif|mp4|webm).(jpeg|jpg|png|gif|mp4|webm)")
+	r := regexp.MustCompile(`"/.media/(.*)-(video|image)(jpeg|jpg|png|gif|mp4|webm).(jpeg|jpg|png|gif|mp4|webm)" `)
 	for _, x := range r.FindAllString(src, -1) {
-		result = append(result, "https://mewch.net"+x)
+		result = append(result, "https://mewch.net"+x[1:len(x)-2])
 	}
 	return result
 }
