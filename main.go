@@ -14,9 +14,7 @@ var errDupe error = errors.New("dupe")
 
 func main() {
 	flagURL := flag.String("thread", "", "the chan thread to download")
-
 	flag.Parse()
-
 	if *flagURL == "" {
 		log.Fatalf("could not find thread url")
 	}
@@ -84,6 +82,9 @@ func filter(src string) []string {
 	if strings.Contains(src, "ccluster.com") {
 		result = filter_ccluster_s(src)
 	}
+	if strings.Contains(src, "enrive.org") {
+		result = filter_enrive(src)
+	}
 	// https://mewch.net/nsfw/res/1231.html
 	if strings.Contains(src, "mewch.net") {
 		result = filter_mewch(src)
@@ -105,6 +106,15 @@ func filter_ccluster_s(src string) []string {
 	var result []string // https://ccluster.com/media/images/pedo_135.png
 	// <a " class="hyperlinkMediaFileName" href="https://ccluster.com/media/images/Models_697.jpg" target="_blank">
 	r := regexp.MustCompile("https://ccluster.com/media/(images|videos)/[a-zA-Z0-9_-]{1,100}.(jpg|jpeg|png|gif|webm)")
+	for _, x := range r.FindAllString(src, -1) {
+		result = append(result, x)
+	}
+	return result
+}
+
+func filter_enrive(src string) []string {
+	var result []string
+	r := regexp.MustCompile("https://enrive.org/media/(images|videos)/[a-z-A-Z0-9_-]{1,100}.(jpg|jpeg|png|gif|webm|gifv|mp4)")
 	for _, x := range r.FindAllString(src, -1) {
 		result = append(result, x)
 	}
