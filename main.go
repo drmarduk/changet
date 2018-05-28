@@ -90,6 +90,10 @@ func filter(src string) []string {
 		result = filter_mewch(src)
 	}
 
+	if strings.Contains(src, "terchan") {
+		result = filter_terchan(src)
+	}
+
 	return removeDuplicates(result)
 }
 
@@ -158,6 +162,14 @@ func filter_taychan_b(src string) []string {
 	r := regexp.MustCompile("/b/src/[0-9]{7,15}(|-[0-9]{1,3}).(jpg|jpeg|png|gif|webm|gifv)")
 	for _, x := range r.FindAllString(src, -1) {
 		result = append(result, "http://taychan.eu"+x)
+	}
+	return result
+}
+func filter_terchan(src string) []string {
+	var result []string
+	r := regexp.MustCompile("/src/[0-9]{7,15}.(jpg|jpeg|png|gif|webm|gifv)")
+	for _, x := range r.FindAllString(src, -1) {
+		result = append(result, "https://terchan.xyz"+x)
 	}
 	return result
 }
